@@ -41,28 +41,42 @@ func (e ConstraintError) As(v any) bool {
 // addresses and URIs.
 type Engine struct {
 	hasNameConstraints      bool
-	permittedDNSDomains     []string
+	permittedDNSDomains     [][]string
 	excludedDNSDomains      []string
-	permittedIPRanges       []*net.IPNet
+	permittedIPRanges       [][]*net.IPNet
 	excludedIPRanges        []*net.IPNet
-	permittedEmailAddresses []string
+	permittedEmailAddresses [][]string
 	excludedEmailAddresses  []string
-	permittedURIDomains     []string
+	permittedURIDomains     [][]string
 	excludedURIDomains      []string
 }
 
 // New creates a constraint validation engine that contains the given chain of
 // certificates.
+//
+// Per RFC 5280, Section 4.2.1.10, the permitted subtrees of each CA in the
+// chain are intersected: a name must be permitted by every certificate that
+// defines permitted subtrees for that name type. The excluded subtrees are
+// unioned: a name matching any excluded subtree of any certificate is
+// rejected.
 func New(chain ...*x509.Certificate) *Engine {
 	e := new(Engine)
 	for _, crt := range chain {
-		e.permittedDNSDomains = append(e.permittedDNSDomains, crt.PermittedDNSDomains...)
+		if len(crt.PermittedDNSDomains) > 0 {
+			e.permittedDNSDomains = append(e.permittedDNSDomains, crt.PermittedDNSDomains)
+		}
 		e.excludedDNSDomains = append(e.excludedDNSDomains, crt.ExcludedDNSDomains...)
-		e.permittedIPRanges = append(e.permittedIPRanges, crt.PermittedIPRanges...)
+		if len(crt.PermittedIPRanges) > 0 {
+			e.permittedIPRanges = append(e.permittedIPRanges, crt.PermittedIPRanges)
+		}
 		e.excludedIPRanges = append(e.excludedIPRanges, crt.ExcludedIPRanges...)
-		e.permittedEmailAddresses = append(e.permittedEmailAddresses, crt.PermittedEmailAddresses...)
+		if len(crt.PermittedEmailAddresses) > 0 {
+			e.permittedEmailAddresses = append(e.permittedEmailAddresses, crt.PermittedEmailAddresses)
+		}
 		e.excludedEmailAddresses = append(e.excludedEmailAddresses, crt.ExcludedEmailAddresses...)
-		e.permittedURIDomains = append(e.permittedURIDomains, crt.PermittedURIDomains...)
+		if len(crt.PermittedURIDomains) > 0 {
+			e.permittedURIDomains = append(e.permittedURIDomains, crt.PermittedURIDomains)
+		}
 		e.excludedURIDomains = append(e.excludedURIDomains, crt.ExcludedURIDomains...)
 	}
 

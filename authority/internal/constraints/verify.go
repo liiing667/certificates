@@ -59,30 +59,34 @@ func checkNameConstraints(nameType, name string, parsedName, permitted, excluded
 		}
 	}
 
-	var (
-		err error
-		ok  = true
-	)
-
+	// The permitted subtrees of each certificate in the chain are
+	// intersected: the name must be permitted by the permitted subtrees of
+	// every certificate that defines them.
 	permittedValue := reflect.ValueOf(permitted)
 	for i := 0; i < permittedValue.Len(); i++ {
-		constraint := permittedValue.Index(i).Interface()
-		if ok, err = match(parsedName, constraint); err != nil {
+		group := permittedValue.Index(i)
+		ok := false
+		for j := 0; j < group.Len(); j++ {
+			constraint := group.Index(j).Interface()
+			match, err := match(parsedName, constraint)
+			if err != nil {
+				return ConstraintError{
+					Type:   nameType,
+					Name:   name,
+					Detail: err.Error(),
+				}
+			}
+			if match {
+				ok = true
+				break
+			}
+		}
+		if !ok {
 			return ConstraintError{
 				Type:   nameType,
 				Name:   name,
-				Detail: err.Error(),
+				Detail: fmt.Sprintf("%s %q is not permitted by any constraint", nameType, name),
 			}
-		}
-		if ok {
-			break
-		}
-	}
-	if !ok {
-		return ConstraintError{
-			Type:   nameType,
-			Name:   name,
-			Detail: fmt.Sprintf("%s %q is not permitted by any constraint", nameType, name),
 		}
 	}
 
